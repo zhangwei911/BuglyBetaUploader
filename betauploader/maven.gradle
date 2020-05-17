@@ -1,16 +1,5 @@
-apply plugin: 'groovy'
+// 1.maven-插件
 apply plugin: 'maven'
-//apply from: '../bintray.gradle'
-dependencies {
-    compile gradleApi()
-    compile localGroovy()
-}
-
-repositories {
-    mavenCentral()
-}
-//group = 'com.tencent.bugly.plugin'
-//version = '1.0.0'
 apply from: 'maven-info.gradle'
 // 3.maven-路径
 uploadArchives {
@@ -106,4 +95,3 @@ tasks.withType(Javadoc) {
     options.addStringOption('encoding', 'UTF-8')
     options.addStringOption('charSet', 'UTF-8')
 }
-

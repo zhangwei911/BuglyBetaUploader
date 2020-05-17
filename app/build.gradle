@@ -1,39 +1,46 @@
-buildscript {
-    repositories {
-        jcenter()
-        maven {
-            url 'https://jalenchen.bintray.com/maven/'
-        }
-    }
-    dependencies {
-        classpath 'com.tencent.bugly.plugin:betauploader:1.0.0'
-    }
-}
+//buildscript {
+//    repositories {
+//        jcenter()
+//        maven {
+//            url 'https://jalenchen.bintray.com/maven/'
+//        }
+//    }
+//    dependencies {
+//        classpath 'viz.commonlib:upload:1.0.0'
+//    }
+//}
 
 
 apply plugin: 'com.android.application'
 apply plugin: 'groovyx.grooid.groovy-android'
-apply plugin: 'com.tencent.bugly.plugin.betauploader' // 应用上传apk插件
+apply plugin: 'viz.commonlib.upload' // 应用上传apk插件
 
 // beta配置
 beta {
-    appId = '900037672'
-    appKey = 'bQvYLRrBNiqUctfi'
-    title = "测试55555"
-    desc = "你没事吧1111"
-    enable = false
-    autoUpload = true
+    url = "http://localhost/upload.php"
+    resultField = "code"
+    resultValue = "1"
+    uploadParams = [
+            'appId' : '900037672',
+            'appKey': 'bQvYLRrBNiqUctfi',
+            'title' : "测试55555",
+            'desc'  : "你没事吧1111"
+    ]
+    fileField = "imgFile"
+    uploadFlavors = ['VI']
+    enable = true
+    autoUpload = false
     debugOn = true
 }
 
 android {
-    compileSdkVersion 23
-    buildToolsVersion "23.0.3"
+    compileSdkVersion 29
+    buildToolsVersion "29.0.2"
 
     defaultConfig {
         applicationId "com.devilwwj.plugintest"
         minSdkVersion 14
-        targetSdkVersion 23
+        targetSdkVersion 29
         versionCode 1
         versionName "1.0"
     }
@@ -57,6 +64,12 @@ android {
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
             signingConfig signingConfigs.release
         }
+    }
+
+    flavorDimensions "default"
+    productFlavors {
+        VI {}
+        TEST {}
     }
 }
 

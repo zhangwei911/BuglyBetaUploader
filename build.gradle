@@ -2,13 +2,15 @@
 
 buildscript {
     repositories {
+        maven{url "file://E:\\Android\\AndroidSDK\\extras\\android\\m2repository"}
         jcenter()
     }
     dependencies {
-        classpath 'com.android.tools.build:gradle:2.1.0'
+        classpath 'com.android.tools.build:gradle:4.1.0-alpha08'
         classpath 'org.codehaus.groovy:gradle-groovy-android-plugin:0.3.6'
         classpath 'com.github.dcendents:android-maven-gradle-plugin:latest.release'
         classpath 'com.jfrog.bintray.gradle:gradle-bintray-plugin:1.6'
+        classpath 'viz.commonlib:upload:1.0.16'
         // NOTE: Do not place your application dependencies here; they belong
         // in the individual module build.gradle files
     }
@@ -25,4 +27,44 @@ allprojects {
 
 task clean(type: Delete) {
     delete rootProject.buildDir
+}
+
+// get android sdk dir
+String getRepositoryDir() {
+    def rootDir = project.rootDir
+    def androidSdkDir = null
+    String envVar = System.getenv("ANDROID_HOME")
+    def localProperties = new File(rootDir, 'local.properties')
+    String systemProperty = System.getProperty("android.home")
+    if (envVar != null) {
+        androidSdkDir = envVar
+    } else if (localProperties.exists()) {
+        Properties properties = new Properties()
+        localProperties.withInputStream { instr ->
+            properties.load(instr)
+        }
+        def sdkDirProp = properties.getProperty('sdk.dir')
+        if (sdkDirProp != null) {
+            androidSdkDir = sdkDirProp
+        } else {
+            sdkDirProp = properties.getProperty('android.dir')
+            if (sdkDirProp != null) {
+                androidSdkDir = (new File(rootDir, sdkDirProp)).getAbsolutePath()
+            }
+        }
+    }
+    if (androidSdkDir == null && systemProperty != null) {
+        androidSdkDir = systemProperty
+    }
+    if (androidSdkDir == null) {
+        println("don't have env: android_home ,please set...")
+        if (androidSdkDir == null) {
+            throw new RuntimeException(
+                    "Unable to determine Android SDK directory.")
+        }
+    }
+
+    def deployPath = file(androidSdkDir + "/extras/android/m2repository/")
+    String repository_url = "file://${deployPath.absolutePath}"
+    repository_url
 }

@@ -92,6 +92,7 @@ public class HttpURLConnectionUtil {
         for (Iterator<String> it = keySet.iterator(); it.hasNext();) {
             String name = it.next();
             String value = textParams.get(name);
+            println(name + "=" + value)
             if (ds != null && value != null ) {
                 ds.writeBytes("--" + BOUNDARY + "\r\n");
                 ds.writeBytes("Content-Disposition: form-data; name=\"" + name

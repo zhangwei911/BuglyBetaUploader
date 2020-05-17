@@ -37,11 +37,6 @@ import groovy.json.JsonSlurper
 public class BetaPlugin implements Plugin<Project> {
     private Project project = null;
 
-    // URL for uploading apk file
-    private static final String APK_UPLOAD_URL = "https://api.bugly.qq.com/beta/apiv1/exp?app_key=";
-    private static final String APK_UPLOAD_URL2 = "https://api.bugly.qq.com/beta2/apiv1/exp?app_key=";
-
-
     @Override
     void apply(Project project) {
         this.project = project
@@ -52,86 +47,44 @@ public class BetaPlugin implements Plugin<Project> {
         if (project.android.hasProperty("applicationVariants")) { // For android application.
             project.android.applicationVariants.all { variant ->
                 String variantName = variant.name.capitalize()
-
                 // Check for execution
                 if (false == project.beta.enable) {
                     project.logger.error("Bugly: beta gradle enable is false, if you want to auto upload apk file, you should set the execute = true")
                     return
                 }
+                variant.outputs.all { output ->
+                    if (!project.beta.uploadFlavors.contains(variant.productFlavors[0].name)) {
+                        project.logger.error(variantName + ":uploadFlavors does not contains " + variant.productFlavors[0].name)
+                        return
+                    }
 
-                // Create task.
-                Task betaTask = createUploadTask(variant)
+                    // Create task.
+                    Task betaTask = createUploadTask(variant)
 
-                // Check autoUpload
-                if (!project.beta.autoUpload) {
-                    // dependsOn task
-                    betaTask.dependsOn project.tasks["assemble${variantName}"]
-                } else {
-                    // autoUpload after assemble
-                    project.tasks["assemble${variantName}"].doLast {
-                        // if debug model and debugOn = false no execute upload
-                        if (variantName.contains("Debug") && !project.beta.debugOn) {
-                            println("Bugly: the option debugOn is closed, if you want to upload apk file on debug model, you can set debugOn = true to open it")
-                            return
+                    // Check autoUpload
+                    if (!project.beta.autoUpload) {
+                        // dependsOn task
+                        betaTask.dependsOn project.tasks["assemble${variantName}"]
+                    } else {
+                        // autoUpload after assemble
+                        project.tasks["assemble${variantName}"].doLast {
+                            // if debug model and debugOn = false no execute upload
+                            if (variantName.contains("Debug") && !project.beta.debugOn) {
+                                println("Bugly: the option debugOn is closed, if you want to upload apk file on debug model, you can set debugOn = true to open it")
+                                return
+                            }
+
+                            if (variantName.contains("Release")) {
+                                println("Bugly: the option autoUpload is opened, it will auto upload the release to the bugly platform")
+                            }
+                            File apkFile = variant.outputs[0].outputFile
+                            uploadApk(project.beta.url, apkFile.getAbsolutePath(), project.beta.uploadParams, project.beta.resultField, project.beta.resultValue)
+
                         }
-
-                        if (variantName.contains("Release")) {
-                            println("Bugly: the option autoUpload is opened, it will auto upload the release to the bugly platform")
-                        }
-                        uploadApk(generateUploadInfo(variant))
-
                     }
                 }
             }
         }
-    }
-
-    /**
-     * generate upload info
-     * @param variant
-     * @return
-     */
-    public UploadInfo generateUploadInfo(Object variant) {
-        def manifestFile = variant.outputs.processManifest.manifestOutputFile[0]
-//        println("-> Manifest: " + manifestFile)
-//        println("VersionCode: " + variant.getVersionCode() + " VersionName: " + variant.getVersionName())
-
-        UploadInfo uploadInfo = new UploadInfo()
-        uploadInfo.appId = project.beta.appId
-        uploadInfo.appKey = project.beta.appKey
-        if (project.beta.title == null) {
-            uploadInfo.title = project.getName() + "-" + variant.getVersionName() + variant.getVersionCode()
-        } else {
-            uploadInfo.title = project.beta.title
-        }
-
-        if (project.beta.desc == null) {
-            uploadInfo.description = ""
-        } else {
-            uploadInfo.description = project.beta.desc
-        }
-
-        uploadInfo.secret = project.beta.secret
-        uploadInfo.users = project.beta.users
-        uploadInfo.password = project.beta.password
-        uploadInfo.download_limit = project.beta.download_limit
-        // if you not set apkFile, default get the assemble output file
-        if (project.beta.apkFile != null) {
-            uploadInfo.sourceFile = project.beta.apkFile
-            println("Bugly: you has set the custom apkFile")
-            println("Bugly: your apk absolutepath :" + project.beta.apkFile)
-        } else {
-            File apkFile = variant.outputs[0].outputFile
-            uploadInfo.sourceFile = apkFile.getAbsolutePath()
-            println("Bugly: the apkFile is default set to build file")
-            println("Bugly: your apk absolutepath :" + apkFile.getAbsolutePath())
-        }
-
-        if (project.beta.expId != null) {
-            uploadInfo.expId = project.beta.expId
-        }
-
-        return uploadInfo
     }
 
     /**
@@ -142,13 +95,14 @@ public class BetaPlugin implements Plugin<Project> {
      */
     private Task createUploadTask(Object variant) {
         String variantName = variant.name.capitalize()
-        Task uploadTask = project.tasks.create("upload${variantName}BetaApkFile") << {
+        Task uploadTask = project.tasks.create("upload${variantName}BetaApkFile") doLast {
             // if debug model and debugOn = false no execute upload
             if (variantName.contains("Debug") && !project.beta.debugOn) {
                 println("Bugly: the option debugOn is closed, if you want to upload apk file on debug model, you can set debugOn = true to open it")
                 return
             }
-            uploadApk(generateUploadInfo(variant))
+            File apkFile = variant.outputs[0].outputFile
+            uploadApk(project.beta.url, apkFile.getAbsolutePath(), project.beta.uploadParams, project.beta.resultField, project.beta.resultValue)
         }
         println("Bugly:create upload${variantName}BetaApkFile task")
         return uploadTask
@@ -159,43 +113,9 @@ public class BetaPlugin implements Plugin<Project> {
      * @param uploadInfo
      * @return
      */
-    public boolean uploadApk(UploadInfo uploadInfo) {
-        // 拼接url如：https://api.bugly.qq.com/beta/apiv1/exp?app_key=bQvYLRrBNiqUctfi
-        String url = APK_UPLOAD_URL + uploadInfo.appKey
-        if (project.beta.expId != null) {
-             url = APK_UPLOAD_URL2 + uploadInfo.appKey;
-        }
-        println("Bugly: Apk start uploading....")
-        //
-        if (uploadInfo.appId == null) {
-            project.logger.error("Please set the app id, eg: appId = \"900037672\"")
-            return false
-        }
-
-        if (uploadInfo.appKey == null) {
-            project.logger.error("Please set app key, eg: appKey = \"bQvYLRrBNiqUctfi\"")
-            return false
-        }
-
-        if (uploadInfo.secret == Constants.OPEN_FOR_PASSWORD) {
-            if (uploadInfo.password == null) {
-                project.logger.error("your apk download open for password, you must set the password")
-                return false
-            }
-        } else if (uploadInfo.secret == Constants.OPEN_FOR_QQGROUP) {
-            if (uploadInfo.users == null) {
-                project.logger.error("your apk download open for qq group, you must set the users")
-                return false
-            }
-        } else if (uploadInfo.secret == Constants.OPEN_FOR_WHITELIST) {
-            if (uploadInfo.users == null) {
-                project.logger.error("your apk download open for white list, you must set the users")
-                return false
-            }
-        }
-        println("Bugly:" + uploadInfo.toString())
-
-        if (!post(url, uploadInfo.sourceFile, uploadInfo)) {
+    public boolean uploadApk(String url, String filePath, Map<String, Object> uploadParams, String resultField, String resultValue) {
+        println("apk本地路径:" + filePath)
+        if (!post(url, filePath, uploadParams, resultField, resultValue)) {
             project.logger.error("Bugly: Failed to upload!")
             return false
         } else {
@@ -211,77 +131,21 @@ public class BetaPlugin implements Plugin<Project> {
      * @param uploadInfo 更新信息
      * @return
      */
-    public boolean post(String url, String filePath, UploadInfo uploadInfo) {
+    public boolean post(String url, String filePath, Map<String, Object> uploadParams, String resultField, String resultValue) {
         HttpURLConnectionUtil connectionUtil = new HttpURLConnectionUtil(url, Constants.HTTPMETHOD_POST);
-        if (uploadInfo.expId != null) {
-            connectionUtil.addTextParameter(Constants.EXP_ID, uploadInfo.expId);
-            connectionUtil.setHttpMethod(Constants.HTTPMETHOD_PUT)
-        } else {
-            connectionUtil.addTextParameter(Constants.APP_ID, uploadInfo.appId);
+        for (String key : uploadParams.keySet()) {
+            connectionUtil.addTextParameter(key, uploadParams.get(key).toString())
         }
-        connectionUtil.addTextParameter(Constants.PLATFORM_ID, uploadInfo.pid);
-        connectionUtil.addTextParameter(Constants.TITLE, uploadInfo.title);
-        connectionUtil.addTextParameter(Constants.DESCRIPTION, uploadInfo.description);
-        connectionUtil.addTextParameter(Constants.SECRET, String.valueOf(uploadInfo.secret));
-        connectionUtil.addTextParameter(Constants.USERS, uploadInfo.users);
-        connectionUtil.addTextParameter(Constants.PASSWORD, uploadInfo.password);
-        connectionUtil.addTextParameter(Constants.DOWNLOAD_LIMIT, String.valueOf(uploadInfo.download_limit));
 
-        connectionUtil.addFileParameter(Constants.FILE, new File(filePath));
+        connectionUtil.addFileParameter(project.beta.fileField, new File(filePath));
 
         String result = new String(connectionUtil.post(), "UTF-8");
         def data = new JsonSlurper().parseText(result)
-        if (data.rtcode == 0) {
-            println("Bugly --->share url: " + data.data.url)
+        if (data[resultField].toString() == resultValue) {
+            println(data)
             return true
         }
+        println(data)
         return false;
     }
-
-
-    private static class UploadInfo {
-        // App ID of Bugly platform.
-        public String appId = null
-        // App Key of Bugly platform.
-        public String appKey = null
-        // platform id
-        public String pid = "1"
-        // Name of apk file to upload.
-        public String sourceFile = null
-        // app version title
-        public String title = null
-        // app version description [option]
-        public String description = null
-        // app secret level
-        public int secret = 0
-        // if open range was qq group set users to qq group num separate by ';' eg: 13244;23456;43843
-        // if open range was qq num set users to qq num separate by ';' eg: 1000136; 10000148;1888432
-        public String users = null
-        // if open range was password you must set password
-        public String password = null
-        // download limit [option] default 10000
-        public int download_limit = 10000
-        // exp id
-        public String expId = null
-
-
-        @Override
-        public String toString() {
-            return "UploadInfo{" +
-                    "appId='" + appId + '\'' +
-                    ", appKey='" + appKey + '\'' +
-                    ", pid='" + pid + '\'' +
-                    ", apkFile='" + sourceFile + '\'' +
-                    ", title='" + title + '\'' +
-                    ", description='" + description + '\'' +
-                    ", secret=" + secret +
-                    ", users='" + users + '\'' +
-                    ", password='" + password + '\'' +
-                    ", download_limit=" + download_limit +
-                    ", expId='" + expId + '\'' +
-                    '}';
-        }
-    }
-
-
 }
