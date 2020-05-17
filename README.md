@@ -1,5 +1,19 @@
 # Beta Gradle插件使用说明
 
+## 通用版说明
+
+| 属性 | 值  | 说明 |
+| --- | --- | --- |
+|url |String| 文件上传url <必选>|
+| resultField |String| 服务器返回结果判断是否成功字段 <必选>|
+| resultValue| String | 服务器返回结果判断是否成功字段值 <必选>|
+| uploadParams | String | 上传需要用到的参数<必选>|
+| fileField | String | 文件字段名<必选> |
+| uploadFlavors | String | 需要上传的Flavors<必选> |
+| fileField | String | 文件字段名<必选> |
+| enable | Boolean | 插件开关，默认为true|
+| autoUpload | Boolean | 是否自动上传，默认为false |
+| debugOn |Boolean | debug模式是否上传， 默认为false|
 
 
 在根目录下的build.gralde文件的depandencies（buildscript部分）中添加：

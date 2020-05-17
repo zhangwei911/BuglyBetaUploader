@@ -17,19 +17,28 @@ apply plugin: 'viz.commonlib.upload' // 应用上传apk插件
 
 // beta配置
 beta {
+    //文件上传url
     url = "http://localhost/upload.php"
+    //服务器返回结果判断是否成功字段
     resultField = "code"
+    //服务器返回结果判断是否成功字段值
     resultValue = "1"
+    //上传需要用到的参数
     uploadParams = [
             'appId' : '900037672',
             'appKey': 'bQvYLRrBNiqUctfi',
             'title' : "测试55555",
             'desc'  : "你没事吧1111"
     ]
+    //文件字段名
     fileField = "imgFile"
+    //需要上传的Flavors
     uploadFlavors = ['VI']
+    //是否开启插件
     enable = true
+    //是否自动上传
     autoUpload = false
+    //是否测试
     debugOn = true
 }
 
@@ -66,11 +75,13 @@ android {
         }
     }
 
+    //上传插件必须-----start
     flavorDimensions "default"
     productFlavors {
         VI {}
         TEST {}
     }
+    //上传插件必须-----end
 }
 
 dependencies {
